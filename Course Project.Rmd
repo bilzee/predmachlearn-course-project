@@ -1,0 +1,89 @@
+Practical Machine Learning - Course Project
+===========================================
+## Inroduction
+Due to the computational intensity of the project, the R code in the Rmarkdown file has been set not to evaluate. 
+
+## Project Instruction
+The goal of your project is to predict the manner in which they did the exercise. This is the "classe" variable in the training set. You may use any of the other variables to predict with. You should create a report describing how you built your model, how you used cross validation, what you think the expected out of sample error is, and why you made the choices you did. You will also use your prediction model to predict 20 different test cases.
+The data for this project come from [this source](http://groupware.les.inf.puc-rio.br/har).
+
+## Preprocessing 
+Exploratory data analysis of the provided test data revealed that 100 out of 160 of the variables in the training set had NA values for all their entries. Therefore in order to train the model, the training set was preprocessed to include only the variables available in the test set. This is to avoid errors that may occur when using classification models like trees which may require some varibles be of a certain type and assigned. Assume the training and test data sets are in the working directory.
+``` {r, echo=TRUE, eval=FALSE}
+library(caret)
+library(rpart)
+library(randomForest) 
+library(ipred)
+library(plyr)
+train <- read.csv("pml-training.csv")
+test <- read.csv("pml-testing.csv")
+trainNonEmpty <- train[,!is.na(test[1,])]
+```
+
+## Cross Validation
+For cross validation, Random Sampling was carried out on the train set. Three sets were created in each case the cross validation train set being containing random 75% of the actual train set, while the cross validation test set was 25%.
+``` {r, echo=TRUE, eval=FALSE}
+### Random Sampling Cross Validation three times
+set.seed(135)
+trainIndex = createDataPartition(trainNonEmpty$classe, p = 0.75,list=FALSE)
+train1 = trainNonEmpty[trainIndex,]
+test1 = trainNonEmpty[-trainIndex,]
+
+set.seed(246)
+trainIndex = createDataPartition(trainNonEmpty$classe, p = 0.75,list=FALSE)
+train2 = trainNonEmpty[trainIndex,]
+test2 = trainNonEmpty[-trainIndex,]
+
+set.seed(357)
+trainIndex = createDataPartition(trainNonEmpty$classe, p = 0.75,list=FALSE)
+train3 = trainNonEmpty[trainIndex,]
+test3 = trainNonEmpty[-trainIndex,]
+``` 
+In each case, a Random Forest and a Boosting models were fitted using the cross validation training set. Then the corresponding test set was predicted using the fitted model.  
+``` {r, echo=TRUE, eval=FALSE}
+## fitting models
+fitrf1 <- train(classe ~ ., data=train1, method="rf")
+fitboost1 <- train(classe ~ ., data=train1, method="gbm", verbose=FALSE)
+
+fitrf2 <- train(classe ~ ., data=train2, method="rf")
+fitboost2 <- train(classe ~ ., data=train2, method="gbm", verbose=FALSE)
+
+fitrf3 <- train(classe ~ ., data=train3, method="rf")
+fitboost3 <- train(classe ~ ., data=train3, method="gbm", verbose=FALSE)
+
+## predicting models
+predrf1 <- predict(fitrf1, test1)
+predboost1 <- predict(fitboost1, test1)
+
+predrf2 <- predict(fitrf2, test2)
+predboost2 <- predict(fitboost2, test2)
+
+predrf3 <- predict(fitrf3, test3)
+predboost3 <- predict(fitboost3, test3)
+``` 
+
+
+## Out of Sample Error Estimation
+For each of the predictions in the cross validation sets, the accuracy was calculated. Only the random forest models shall be used because the accuracy is approximately the same with that of boosting. The respective errors were calculated from the accuracy.
+The average error of the three cross validation set was taken as an estimate for the out of sample error
+``` {r, echo=TRUE, eval=FALSE}
+accuracy1 <- sum(predrf1 == test1$classe)/length(test1$classe)
+error1 <- 1 - accuracy1
+
+accuracy2 <- sum(predrf2 == test2$classe)/length(test2$classe)
+error2 <- 1 - accuracy2
+
+accuracy3 <- sum(predrf3 == test3$classe)/length(test3$classe)
+error3 <- 3 - accuracy3
+
+outOfSampleErrorEst <- mean(error1, error2, error3)
+outOfSampleErrorEst
+``` 
+
+
+## Conclusion
+The estimated out of Sample error is 0. This is due to the high accuracy reported in each case of the cross validation (1, 1 and 0.99).  
+However this low level of error (and high accuracy) is suspect because the models perform quite poorly when predicting the actual test set (based on the scores from the submitted part of the project). Therefore there must be something that has escaped the author which would be appreciated if pointed out by the markers. 
+Please not that for predicting the actual test set, a new model was created using random forest on the entire training set before predicting. The predictions on the actual test set are the same for all the models. 
+
+
